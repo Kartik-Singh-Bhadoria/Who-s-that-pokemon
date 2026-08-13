@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Who's That Pokémon?</title>
+<style>
+  :root {
+    --bg: #1c1f26;
+    --panel: #262b35;
+    --screen: #9bbf8a;
+    --screen-dark: #4f6b47;
+    --red: #cc3333;
+    --red-dark: #9c2222;
+    --text: #e8e8e0;
+    --amber: #e0a838;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    font-family: 'Courier New', monospace;
+    color: var(--text);
+    padding: 20px;
+  }
+
+  .pokedex {
+    width: 380px;
+    background: var(--red);
+    border: 4px solid var(--red-dark);
+    border-radius: 16px 16px 24px 24px;
+    padding: 20px;
+    box-shadow: 0 12px 0 rgba(0,0,0,0.25), 0 12px 30px rgba(0,0,0,0.4);
+  }
+
+  .top-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .lens {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #cfe8ff, #4aa8e0 60%, #1c6faa);
+    border: 3px solid #16405c;
+  }
+
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot.red { background: #d94444; }
+  .dot.yellow { background: #e6c341; }
+  .dot.green { background: #4caf6a; }
+
+  .title {
+    margin-left: auto;
+    font-weight: bold;
+    letter-spacing: 1px;
+    font-size: 13px;
+    color: #fff;
+    opacity: 0.9;
+  }
+
+  .screen {
+    background: var(--panel);
+    border-radius: 10px;
+    padding: 14px;
+    border: 3px solid #14161b;
+  }
+
+  .display {
+    background: var(--screen);
+    border: 3px solid var(--screen-dark);
+    border-radius: 6px;
+    min-height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .display img {
+    width: 65%;
+    image-rendering: pixelated;
+    filter: brightness(0) opacity(0);
+    transition: filter 0.4s ease;
+  }
+
+  .display.silhouette img {
+    filter: brightness(0) opacity(0.85);
+  }
+
+  .display.revealed img {
+    filter: none;
+    opacity: 1;
+  }
+
+  .display .placeholder {
+    color: var(--screen-dark);
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+
+  .status-line {
+    margin-top: 10px;
+    font-size: 12px;
+    min-height: 16px;
+    color: var(--amber);
+    letter-spacing: 0.5px;
+  }
+
+  .status-line.correct { color: #6fd66f; }
+  .status-line.wrong { color: #e05a5a; }
+
+  form {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  input[type="text"] {
+    flex: 1;
+    padding: 10px;
+    border: 2px solid #14161b;
+    border-radius: 6px;
+    background: #14161b;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+  }
+
+  input[type="text"]:focus {
+    outline: 2px solid var(--amber);
+  }
+
+  button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    background: var(--amber);
+    color: #1c1f26;
+    font-family: inherit;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 13px;
+  }
+
+  button:hover { filter: brightness(1.1); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+  }
+
+  .score {
+    font-size: 12px;
+    color: var(--text);
+    opacity: 0.8;
+  }
+
+  .next-btn {
+    background: transparent;
+    color: var(--text);
+    border: 2px solid var(--text);
+    opacity: 0.7;
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+
+  .next-btn:hover { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="pokedex">
+  <div class="top-bar">
+    <div class="lens"></div>
+    <div class="dot red"></div>
+    <div class="dot yellow"></div>
+    <div class="dot green"></div>
+    <div class="title">WHO'S THAT POKÉMON?</div>
+  </div>
+
+  <div class="screen">
+    <div class="display" id="display">
+      <span class="placeholder">LOADING...</span>
+    </div>
+    <div class="status-line" id="status"></div>
+
+    <form id="guess-form">
+      <input type="text" id="guess-input" placeholder="Type a Pokémon name..." autocomplete="off" />
+      <button type="submit">Guess</button>
+    </form>
+
+    <div class="controls">
+      <span class="score" id="score">Score: 0</span>
+      <button class="next-btn" id="next-btn">Skip / Next →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Change this if your backend runs somewhere else
+  const API_BASE = 'http://localhost:8000';
+
+  const display = document.getElementById('display');
+  const status = document.getElementById('status');
+  const form = document.getElementById('guess-form');
+  const input = document.getElementById('guess-input');
+  const scoreEl = document.getElementById('score');
+  const nextBtn = document.getElementById('next-btn');
+
+  let score = 0;
+  let currentId = null;
+  let solved = false;
+
+  async function loadPokemon() {
+    solved = false;
+    status.textContent = '';
+    status.className = 'status-line';
+    input.value = '';
+    input.disabled = false;
+    input.focus();
+
+    display.className = 'display';
+    display.innerHTML = '<span class="placeholder">LOADING...</span>';
+
+    try {
+      const res = await fetch(`${API_BASE}/pokemon`);
+      if (!res.ok) throw new Error('Request failed');
+      const data = await res.json();
+      currentId = data.id;
+
+      // Show the real image, but as a black silhouette (anime-style reveal)
+      display.innerHTML = `<img src="${data.image}" alt="mystery pokémon" />`;
+      display.className = 'display silhouette';
+    } catch (err) {
+      console.error(err);
+      display.innerHTML = '<span class="placeholder">COULD NOT LOAD</span>';
+      status.textContent = 'Backend not reachable — is it running on :8000?';
+      status.className = 'status-line wrong';
+    }
+  }
+
+  async function submitGuess(guess) {
+    try {
+      const res = await fetch(`${API_BASE}/guess`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guess })
+      });
+      const data = await res.json();
+
+      if (data.correct) {
+        solved = true;
+        score += 1;
+        scoreEl.textContent = `Score: ${score}`;
+        status.textContent = `Correct! It's ${data.name.toUpperCase()}.`;
+        status.className = 'status-line correct';
+        input.disabled = true;
+
+        // swap the class so the CSS filter transitions from black silhouette to full color
+        display.className = 'display revealed';
+      } else {
+        status.textContent = 'Not quite — try again!';
+        status.className = 'status-line wrong';
+      }
+    } catch (err) {
+      console.error(err);
+      status.textContent = 'Something went wrong talking to the server.';
+      status.className = 'status-line wrong';
+    }
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const guess = input.value.trim();
+    if (!guess || solved) return;
+    submitGuess(guess);
+  });
+
+  nextBtn.addEventListener('click', () => {
+    loadPokemon();
+  });
+
+  loadPokemon();
+</script>
+
+</body>
+</html>
