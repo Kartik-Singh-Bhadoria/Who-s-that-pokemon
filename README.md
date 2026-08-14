@@ -41,7 +41,7 @@ A "Who's That Pokémon?" guessing game inspired by the anime segment — built w
 ## Running locally
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/Kartik-Singh-Bhadoria/Who-s-that-pokemon
 cd <project-folder>
 npm install
 npm start
